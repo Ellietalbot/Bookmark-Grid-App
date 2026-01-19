@@ -17,7 +17,8 @@
         }
         .bookmark-tile {
             transition: all 0.2s;
-            aspect-ratio: 1;
+            width: 65px;
+            height: 65px;
             background: white;
             border-radius: 16px;
         }
@@ -28,7 +29,8 @@
         .ghost-tile {
             opacity: 0.3;
             transition: all 0.2s;
-            aspect-ratio: 1;
+            width: 65px;
+            height: 65px;
             background: rgba(255, 255, 255, 0.2);
             border-radius: 16px;
         }
@@ -52,70 +54,29 @@
         }
         .search-widget {
             grid-column: span 4;
-            grid-row: span 2;
             background: white;
-            border-radius: 20px;
-            padding: 32px;
+            border-radius: 16px;
+            padding: 12px 16px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-        .google-logo {
-            font-family: Arial, sans-serif;
-            font-size: 64px;
-            font-weight: bold;
-            text-align: center;
-            margin-bottom: 24px;
-            letter-spacing: -2px;
-        }
-        .google-logo .g-blue { color: #4285F4; }
-        .google-logo .g-red { color: #EA4335; }
-        .google-logo .g-yellow { color: #FBBC05; }
-        .google-logo .g-blue2 { color: #4285F4; }
-        .google-logo .g-green { color: #34A853; }
-        .google-logo .g-red2 { color: #EA4335; }
-        
-        .search-box {
-            background: white;
-            border: 1px solid #dfe1e5;
-            border-radius: 24px;
-            box-shadow: 0 1px 6px rgba(32,33,36,.28);
             display: flex;
             align-items: center;
-            padding: 0 16px;
-            height: 46px;
-            margin-bottom: 20px;
+            height: 65px;
         }
-        .search-box:hover {
-            box-shadow: 0 1px 6px rgba(32,33,36,.28);
-            border-color: rgba(223,225,229,0);
+        .search-widget form {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
-        .search-box input {
+        .search-widget input {
             flex: 1;
             border: none;
             outline: none;
-            font-size: 16px;
-            padding: 0 12px;
+            font-size: 14px;
+            padding: 0 8px;
         }
         .search-icon {
             color: #9aa0a6;
-        }
-        .search-tabs {
-            display: flex;
-            gap: 24px;
-            justify-content: center;
-            margin-bottom: 20px;
-            font-size: 13px;
-        }
-        .search-tab {
-            color: #5f6368;
-            cursor: pointer;
-            padding: 4px 0;
-        }
-        .search-tab:hover {
-            color: #202124;
-        }
-        .search-tab.active {
-            color: #1a73e8;
-            border-bottom: 3px solid #1a73e8;
         }
     </style>
 </head>
@@ -132,13 +93,8 @@
         </label>
     </div>
 
-    <div class="absolute top-4 left-4 z-10">
-        <input type="text" placeholder="Search" 
-               class="bg-white bg-opacity-90 rounded-full px-6 py-2 shadow-lg w-80 outline-none border-2 border-cyan-400 focus:border-cyan-500">
-    </div>
-
     <div class="container mx-auto px-8 py-16">
-        <div id="bookmarkGrid" class="grid grid-cols-10 gap-4 max-w-7xl mx-auto"></div>
+        <div id="bookmarkGrid" class="grid grid-cols-10 gap-6 max-w-7xl mx-auto" style="row-gap: 24px; column-gap: 24px;"></div>
     </div>
 
     <!-- Modal -->
@@ -182,7 +138,9 @@
         let editId = null;
         let selectedColor = 'bg-blue-500';
         const tilesPerRow = 10;
-        const totalTiles = 60;
+        const totalTiles = 50;
+        const searchWidgetRow = 2; // Third row (0-indexed)
+        const searchWidgetStartCol = 3; // Start at column 3 (after 3 tiles)
 
         function saveBookmarks() {
             localStorage.setItem('bookmarks', JSON.stringify(bookmarks));
@@ -204,6 +162,34 @@
             let bookmarkIndex = 0;
 
             for (let i = 0; i < totalTiles; i++) {
+                const currentRow = Math.floor(i / tilesPerRow);
+                const currentCol = i % tilesPerRow;
+
+                // Insert search widget in row 2 (3rd row), columns 3-6 (spanning 4 columns)
+                if (currentRow === searchWidgetRow && currentCol === searchWidgetStartCol) {
+                    const searchWidget = document.createElement('div');
+                    searchWidget.className = 'search-widget';
+                    searchWidget.innerHTML = `
+                        <form action="https://www.google.com/search" method="get" target="_blank">
+                            <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <path d="m21 21-4.35-4.35"></path>
+                            </svg>
+                            <input type="text" name="q" placeholder="Search Google...">
+                            <button type="submit" style="background: none; border: none; cursor: pointer;">
+                                <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <path d="m21 21-4.35-4.35"></path>
+                                </svg>
+                            </button>
+                        </form>
+                    `;
+                    grid.appendChild(searchWidget);
+                    
+                    // Skip the next 3 positions in this row (columns 4, 5, 6)
+                    i += 3;
+                    continue;
+                }
 
                 const bookmark = bookmarks[bookmarkIndex];
                 const tile = document.createElement('div');
@@ -212,9 +198,9 @@
                 if (bookmark) {
                     tile.innerHTML = `
                         <a href="${bookmark.url}" target="_blank" rel="noopener noreferrer" 
-                           class="bookmark-tile w-full flex flex-col items-center justify-center relative overflow-hidden shadow-lg block p-4"
+                           class="bookmark-tile flex flex-col items-center justify-center relative overflow-hidden shadow-lg block p-2"
                            title="${bookmark.title}">
-                            <img src="${getFaviconUrl(bookmark.url)}" alt="${bookmark.title}" class="w-16 h-16">
+                            <img src="${getFaviconUrl(bookmark.url)}" alt="${bookmark.title}" class="w-12 h-12">
                             <div class="edit-buttons absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center">
                                 <div class="flex gap-2">
                                     <button class="edit-btn bg-white text-gray-800 rounded-full p-2 hover:bg-gray-100 shadow-lg" data-id="${bookmark.id}">
@@ -236,8 +222,8 @@
                     bookmarkIndex++;
                 } else {
                     tile.innerHTML = `
-                        <button class="add-btn ghost-tile w-full flex items-center justify-center">
-                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" opacity="0.5">
+                        <button class="add-btn ghost-tile flex items-center justify-center">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" opacity="0.5">
                                 <line x1="12" y1="5" x2="12" y2="19"></line>
                                 <line x1="5" y1="12" x2="19" y2="12"></line>
                             </svg>
