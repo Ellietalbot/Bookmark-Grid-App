@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Bookmarks</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: linear-gradient(to bottom right, #dbeafe, #e0e7ff);
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            min-height: 100vh;
+        }
+        .bookmark-tile {
+            transition: all 0.2s;
+        }
+        .bookmark-tile:hover {
+            opacity: 0.9;
+            transform: scale(1.05);
+        }
+        .ghost-tile {
+            opacity: 0.3;
+            transition: all 0.2s;
+        }
+        .ghost-tile:hover {
+            opacity: 1;
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+        .edit-buttons {
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .bookmark-tile:hover .edit-buttons {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="p-8">
+    <div class="absolute top-4 right-4">
+        <label class="cursor-pointer bg-white bg-opacity-90 hover:bg-opacity-100 rounded-full px-4 py-2 shadow-lg flex items-center gap-2 transition-all">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            <span class="text-sm font-medium">Upload Background</span>
+            <input type="file" accept="image/*" id="bgUpload" class="hidden">
+        </label>
+    </div>
+
+    <div class="max-w-7xl mx-auto">
+        <h1 class="text-4xl font-bold text-white mb-8 text-center drop-shadow-lg">My Bookmarks</h1>
+        
+        <div id="bookmarkGrid" class="grid grid-cols-6 gap-4"></div>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full">
+            <h2 id="modalTitle" class="text-2xl font-bold mb-4">Add Bookmark</h2>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Title</label>
+                    <input type="text" id="bookmarkTitle" class="w-full border rounded px-3 py-2" placeholder="My Bookmark">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium mb-1">URL</label>
+                    <input type="text" id="bookmarkUrl" class="w-full border rounded px-3 py-2" placeholder="example.com">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium mb-2">Tile Color</label>
+                    <div id="colorPicker" class="grid grid-cols-6 gap-2"></div>
+                </div>
+            </div>
+
+            <div class="flex gap-2 mt-6">
+                <button id="saveBtn" class="flex-1 bg-blue-500 text-white rounded py-2 hover:bg-blue-600">Save</button>
+                <button id="cancelBtn" class="flex-1 bg-gray-200 text-gray-800 rounded py-2 hover:bg-gray-300">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const colors = [
+            'bg-blue-500', 'bg-red-500', 'bg-green-500', 'bg-yellow-500',
+            'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-orange-500',
+            'bg-teal-500', 'bg-cyan-500', 'bg-gray-800', 'bg-emerald-500'
+        ];
+
+        let bookmarks = JSON.parse(localStorage.getItem('bookmarks')) || [
+            { id: 1, title: 'Google', url: 'https://google.com', color: 'bg-blue-500' },
+            { id: 2, title: 'YouTube', url: 'https://youtube.com', color: 'bg-red-500' },
+            { id: 3, title: 'GitHub', url: 'https://github.com', color: 'bg-gray-800' }
+        ];
+
+        let editId = null;
+        let selectedColor = 'bg-blue-500';
+        const gridSize = 24;
+
+        function saveBookmarks() {
+            localStorage.setItem('bookmarks', JSON.stringify(bookmarks));
+        }
+
+        function getFaviconUrl(url) {
+            try {
+                const domain = new URL(url).hostname;
+                return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
+            } catch {
+                return null;
+            }
+        }
+
+        function renderGrid() {
+            const grid = document.getElementById('bookmarkGrid');
+            grid.innerHTML = '';
+
+            for (let i = 0; i < gridSize; i++) {
+                const bookmark = bookmarks[i];
+                const tile = document.createElement('div');
+                tile.className = 'relative group';
+
+                if (bookmark) {
+                    tile.innerHTML = `
+                        <a href="${bookmark.url}" target="_blank" rel="noopener noreferrer" 
+                           class="bookmark-tile ${bookmark.color} w-full h-32 rounded-lg flex flex-col items-center justify-center text-white relative overflow-hidden shadow-lg block"
+                           title="${bookmark.title}">
+                            <img src="${getFaviconUrl(bookmark.url)}" alt="${bookmark.title}" class="w-16 h-16">
+                            <div class="edit-buttons absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center">
+                                <div class="flex gap-2">
+                                    <button class="edit-btn bg-white text-gray-800 rounded-full p-2 hover:bg-gray-100 shadow-lg" data-id="${bookmark.id}">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                        </svg>
+                                    </button>
+                                    <button class="delete-btn bg-white text-red-600 rounded-full p-2 hover:bg-gray-100 shadow-lg" data-id="${bookmark.id}">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </a>
+                    `;
+                } else {
+                    tile.innerHTML = `
+                        <button class="add-btn ghost-tile w-full h-32 rounded-lg border-2 border-dashed border-gray-300 hover:border-gray-400 transition-all flex items-center justify-center">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-gray-400">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                        </button>
+                    `;
+                }
+
+                grid.appendChild(tile);
+            }
+
+            // Add event listeners
+            document.querySelectorAll('.add-btn').forEach(btn => {
+                btn.addEventListener('click', () => openModal());
+            });
+
+            document.querySelectorAll('.edit-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const id = parseInt(btn.dataset.id);
+                    const bookmark = bookmarks.find(b => b.id === id);
+                    openModal(bookmark);
+                });
+            });
+
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const id = parseInt(btn.dataset.id);
+                    bookmarks = bookmarks.filter(b => b.id !== id);
+                    saveBookmarks();
+                    renderGrid();
+                });
+            });
+        }
+
+        function renderColorPicker() {
+            const picker = document.getElementById('colorPicker');
+            picker.innerHTML = '';
+            colors.forEach(color => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = `${color} w-10 h-10 rounded ${selectedColor === color ? 'ring-4 ring-gray-400' : ''}`;
+                btn.addEventListener('click', () => {
+                    selectedColor = color;
+                    renderColorPicker();
+                });
+                picker.appendChild(btn);
+            });
+        }
+
+        function openModal(bookmark = null) {
+            const modal = document.getElementById('modal');
+            const title = document.getElementById('modalTitle');
+            const titleInput = document.getElementById('bookmarkTitle');
+            const urlInput = document.getElementById('bookmarkUrl');
+
+            if (bookmark) {
+                editId = bookmark.id;
+                title.textContent = 'Edit Bookmark';
+                titleInput.value = bookmark.title;
+                urlInput.value = bookmark.url;
+                selectedColor = bookmark.color;
+            } else {
+                editId = null;
+                title.textContent = 'Add Bookmark';
+                titleInput.value = '';
+                urlInput.value = '';
+                selectedColor = 'bg-blue-500';
+            }
+
+            renderColorPicker();
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.add('hidden');
+        }
+
+        function saveBookmark() {
+            const title = document.getElementById('bookmarkTitle').value;
+            let url = document.getElementById('bookmarkUrl').value;
+
+            if (!title || !url) return;
+
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                url = 'https://' + url;
+            }
+
+            if (editId) {
+                const index = bookmarks.findIndex(b => b.id === editId);
+                bookmarks[index] = { id: editId, title, url, color: selectedColor };
+            } else {
+                bookmarks.push({ id: Date.now(), title, url, color: selectedColor });
+            }
+
+            saveBookmarks();
+            closeModal();
+            renderGrid();
+        }
+
+        // Background upload
+        document.getElementById('bgUpload').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    document.body.style.backgroundImage = `url(${event.target.result})`;
+                    localStorage.setItem('backgroundImage', event.target.result);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Load saved background
+        const savedBg = localStorage.getItem('backgroundImage');
+        if (savedBg) {
+            document.body.style.backgroundImage = `url(${savedBg})`;
+        }
+
+        // Modal buttons
+        document.getElementById('saveBtn').addEventListener('click', saveBookmark);
+        document.getElementById('cancelBtn').addEventListener('click', closeModal);
+
+        // Initial render
+        renderGrid();
+    </script>
+</body>
+</html>
