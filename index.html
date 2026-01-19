@@ -17,8 +17,8 @@
         }
         .bookmark-tile {
             transition: all 0.2s;
-            width: 65px;
-            height: 65px;
+            width: 80px;
+            height: 80px;
             background: white;
             border-radius: 16px;
         }
@@ -29,8 +29,8 @@
         .ghost-tile {
             opacity: 0.3;
             transition: all 0.2s;
-            width: 65px;
-            height: 65px;
+            width: 80px;
+            height: 80px;
             background: rgba(255, 255, 255, 0.2);
             border-radius: 16px;
         }
@@ -60,7 +60,7 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             display: flex;
             align-items: center;
-            height: 65px;
+            height: 80px;
         }
         .search-widget form {
             width: 100%;
@@ -200,7 +200,7 @@
                         <a href="${bookmark.url}" target="_blank" rel="noopener noreferrer" 
                            class="bookmark-tile flex flex-col items-center justify-center relative overflow-hidden shadow-lg block p-2"
                            title="${bookmark.title}">
-                            <img src="${getFaviconUrl(bookmark.url)}" alt="${bookmark.title}" class="w-12 h-12">
+                            <img src="${getFaviconUrl(bookmark.url)}" alt="${bookmark.title}" class="w-14 h-14">
                             <div class="edit-buttons absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center">
                                 <div class="flex gap-2">
                                     <button class="edit-btn bg-white text-gray-800 rounded-full p-2 hover:bg-gray-100 shadow-lg" data-id="${bookmark.id}">
