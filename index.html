@@ -280,7 +280,12 @@
                 return false;
             }
 
-            // Swap positions
+            // Ensure both positions exist in array
+            while (bookmarks.length <= Math.max(draggedIndex, dropIndex)) {
+                bookmarks.push(null);
+            }
+
+            // Swap positions (even if one is null)
             const temp = bookmarks[draggedIndex];
             bookmarks[draggedIndex] = bookmarks[dropIndex];
             bookmarks[dropIndex] = temp;
@@ -308,18 +313,20 @@
                 return false;
             }
 
-            // Ensure array is large enough
-            while (bookmarks.length <= targetPosition) {
+            // Ensure array is large enough for both positions
+            while (bookmarks.length <= Math.max(draggedIndex, targetPosition)) {
                 bookmarks.push(null);
             }
             
-            // Move bookmark to target position
+            // Move bookmark to target position (leave null at old position)
             const movedBookmark = bookmarks[draggedIndex];
-            bookmarks[draggedIndex] = null;
-            bookmarks[targetPosition] = movedBookmark;
+            if (movedBookmark) {
+                bookmarks[draggedIndex] = null;
+                bookmarks[targetPosition] = movedBookmark;
 
-            saveBookmarks();
-            renderGrid();
+                saveBookmarks();
+                renderGrid();
+            }
 
             return false;
         }
