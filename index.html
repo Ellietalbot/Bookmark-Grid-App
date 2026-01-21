@@ -290,7 +290,7 @@
             return false;
         }
 
-        function handleDropOnEmpty(e, emptyIndex) {
+        function handleDropOnEmpty(e, targetPosition) {
             if (e.stopPropagation) {
                 e.stopPropagation();
             }
@@ -303,25 +303,39 @@
                 dropZone.classList.remove('drag-over');
             }
 
-            if (draggedIndex === null) {
+            if (draggedIndex === null || draggedIndex === targetPosition) {
                 return false;
             }
 
-            // Move bookmark from draggedIndex to emptyIndex
-            if (draggedIndex >= 0 && draggedIndex < bookmarks.length) {
-                const [movedBookmark] = bookmarks.splice(draggedIndex, 1);
-                
-                // Insert at the empty position
-                // If emptyIndex is beyond current bookmarks length, push to end
-                if (emptyIndex >= bookmarks.length) {
-                    bookmarks.push(movedBookmark);
-                } else {
-                    bookmarks.splice(emptyIndex, 0, movedBookmark);
+            // Create array with nulls for empty positions
+            const newBookmarks = new Array(Math.max(bookmarks.length, targetPosition + 1)).fill(null);
+            
+            // Place existing bookmarks (except the dragged one)
+            let sourceIdx = 0;
+            for (let i = 0; i < newBookmarks.length; i++) {
+                if (i === targetPosition) {
+                    // Reserve this spot for the dragged bookmark
+                    continue;
                 }
-
-                saveBookmarks();
-                renderGrid();
+                if (sourceIdx === draggedIndex) {
+                    sourceIdx++; // Skip the dragged bookmark
+                }
+                if (sourceIdx < bookmarks.length) {
+                    newBookmarks[i] = bookmarks[sourceIdx];
+                    sourceIdx++;
+                }
             }
+            
+            // Place the dragged bookmark at target position
+            if (draggedIndex < bookmarks.length) {
+                newBookmarks[targetPosition] = bookmarks[draggedIndex];
+            }
+            
+            // Remove trailing nulls and convert back to compact array
+            bookmarks = newBookmarks.filter(b => b !== null);
+
+            saveBookmarks();
+            renderGrid();
 
             return false;
         }
@@ -330,7 +344,25 @@
             const grid = document.getElementById('bookmarkGrid');
             grid.innerHTML = '';
 
-            let bookmarkIndex = 0;
+            // Create a map of actual grid positions to bookmark indices
+            let gridPosition = 0;
+            const positionMap = [];
+
+            for (let i = 0; i < totalTiles; i++) {
+                const currentRow = Math.floor(i / tilesPerRow);
+                const currentCol = i % tilesPerRow;
+
+                // Skip search widget positions
+                if (currentRow === searchWidgetRow && currentCol === searchWidgetStartCol) {
+                    i += 3;
+                    continue;
+                }
+                
+                positionMap.push(gridPosition);
+                gridPosition++;
+            }
+
+            gridPosition = 0;
 
             for (let i = 0; i < totalTiles; i++) {
                 const currentRow = Math.floor(i / tilesPerRow);
@@ -360,9 +392,10 @@
                     continue;
                 }
 
-                const bookmark = bookmarks[bookmarkIndex];
+                const bookmark = bookmarks[gridPosition];
                 const tile = document.createElement('div');
                 tile.className = 'relative group drop-zone';
+                tile.dataset.gridPosition = gridPosition;
 
                 if (bookmark) {
                     const displayStyle = bookmark.displayStyle || 'favicon';
@@ -370,14 +403,11 @@
                         ? `background-image: url(${bookmark.ogImage}); background-size: cover; background-position: center;`
                         : '';
                     
-                    const currentIndex = bookmarkIndex;
-                    
                     tile.innerHTML = `
                         <div draggable="true"
                            class="bookmark-tile flex flex-col items-center justify-center relative overflow-hidden shadow-lg p-2"
                            style="${bgStyle}"
                            title="${bookmark.title}"
-                           data-index="${currentIndex}"
                            data-url="${bookmark.url}">
                             ${displayStyle === 'favicon' ? `<img src="${getFaviconUrl(bookmark.url)}" alt="${bookmark.title}" class="w-16 h-16 pointer-events-none">` : ''}
                             <div class="edit-buttons absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center">
@@ -401,7 +431,7 @@
 
                     // Add drag event listeners to the tile element
                     const tileElement = tile.querySelector('.bookmark-tile');
-                    tileElement.addEventListener('dragstart', (e) => handleDragStart(e, currentIndex));
+                    tileElement.addEventListener('dragstart', (e) => handleDragStart(e, gridPosition));
                     tileElement.addEventListener('dragend', handleDragEnd);
                     tileElement.addEventListener('click', (e) => {
                         // Only navigate if not clicking on buttons
@@ -414,12 +444,8 @@
                     tile.addEventListener('dragover', handleDragOver);
                     tile.addEventListener('dragenter', handleDragEnter);
                     tile.addEventListener('dragleave', handleDragLeave);
-                    tile.addEventListener('drop', (e) => handleDrop(e, currentIndex));
-
-                    bookmarkIndex++;
+                    tile.addEventListener('drop', (e) => handleDrop(e, gridPosition));
                 } else {
-                    const emptyIndex = bookmarkIndex;
-                    
                     tile.innerHTML = `
                         <button class="add-btn ghost-tile flex items-center justify-center">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" opacity="0.5">
@@ -433,12 +459,11 @@
                     tile.addEventListener('dragover', handleDragOver);
                     tile.addEventListener('dragenter', handleDragEnter);
                     tile.addEventListener('dragleave', handleDragLeave);
-                    tile.addEventListener('drop', (e) => handleDropOnEmpty(e, emptyIndex));
-                    
-                    bookmarkIndex++;
+                    tile.addEventListener('drop', (e) => handleDropOnEmpty(e, gridPosition));
                 }
 
                 grid.appendChild(tile);
+                gridPosition++;
             }
 
             // Add event listeners
