@@ -203,7 +203,27 @@
 
         function getFaviconUrl(url) {
             try {
-                const domain = new URL(url).hostname;
+                const urlObj = new URL(url);
+                const domain = urlObj.hostname;
+                
+                // For Google services, use direct favicon URLs
+                const googleServices = {
+                    'docs.google.com': 'https://ssl.gstatic.com/docs/documents/images/kix-favicon7.ico',
+                    'sheets.google.com': 'https://ssl.gstatic.com/docs/spreadsheets/favicon3.ico',
+                    'slides.google.com': 'https://ssl.gstatic.com/docs/presentations/images/favicon5.ico',
+                    'drive.google.com': 'https://ssl.gstatic.com/docs/doclist/images/drive_2022q3_32dp.png',
+                    'mail.google.com': 'https://ssl.gstatic.com/ui/v1/icons/mail/rfr/gmail.ico',
+                    'calendar.google.com': 'https://calendar.google.com/googlecalendar/images/favicons_2020q4/calendar_31.ico',
+                    'meet.google.com': 'https://fonts.gstatic.com/s/i/productlogos/meet_2020q4/v6/web-512dp/logo_meet_2020q4_color_2x_web_512dp.png',
+                    'youtube.com': 'https://www.youtube.com/s/desktop/6e27a787/img/favicon_144x144.png',
+                    'www.youtube.com': 'https://www.youtube.com/s/desktop/6e27a787/img/favicon_144x144.png'
+                };
+                
+                if (googleServices[domain]) {
+                    return googleServices[domain];
+                }
+                
+                // For other sites, try direct favicon.ico first, then Google's API
                 return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
             } catch {
                 return null;
