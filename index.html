@@ -181,6 +181,11 @@
         ];
 
         let bookmarks = JSON.parse(localStorage.getItem('bookmarks')) || [];
+        
+        // Ensure bookmarks is stored as position-based array (migrate old format if needed)
+        if (bookmarks.length > 0 && !Array.isArray(bookmarks)) {
+            bookmarks = Object.values(bookmarks);
+        }
 
         let editId = null;
         let selectedColor = 'bg-blue-500';
@@ -275,17 +280,13 @@
                 return false;
             }
 
-            // Only proceed if both indices are valid bookmark positions
-            if (draggedIndex >= 0 && draggedIndex < bookmarks.length && 
-                dropIndex >= 0 && dropIndex < bookmarks.length) {
-                
-                // Reorder bookmarks array
-                const [movedBookmark] = bookmarks.splice(draggedIndex, 1);
-                bookmarks.splice(dropIndex, 0, movedBookmark);
+            // Swap positions
+            const temp = bookmarks[draggedIndex];
+            bookmarks[draggedIndex] = bookmarks[dropIndex];
+            bookmarks[dropIndex] = temp;
 
-                saveBookmarks();
-                renderGrid();
-            }
+            saveBookmarks();
+            renderGrid();
 
             return false;
         }
@@ -307,32 +308,15 @@
                 return false;
             }
 
-            // Create array with nulls for empty positions
-            const newBookmarks = new Array(Math.max(bookmarks.length, targetPosition + 1)).fill(null);
-            
-            // Place existing bookmarks (except the dragged one)
-            let sourceIdx = 0;
-            for (let i = 0; i < newBookmarks.length; i++) {
-                if (i === targetPosition) {
-                    // Reserve this spot for the dragged bookmark
-                    continue;
-                }
-                if (sourceIdx === draggedIndex) {
-                    sourceIdx++; // Skip the dragged bookmark
-                }
-                if (sourceIdx < bookmarks.length) {
-                    newBookmarks[i] = bookmarks[sourceIdx];
-                    sourceIdx++;
-                }
+            // Ensure array is large enough
+            while (bookmarks.length <= targetPosition) {
+                bookmarks.push(null);
             }
             
-            // Place the dragged bookmark at target position
-            if (draggedIndex < bookmarks.length) {
-                newBookmarks[targetPosition] = bookmarks[draggedIndex];
-            }
-            
-            // Remove trailing nulls and convert back to compact array
-            bookmarks = newBookmarks.filter(b => b !== null);
+            // Move bookmark to target position
+            const movedBookmark = bookmarks[draggedIndex];
+            bookmarks[draggedIndex] = null;
+            bookmarks[targetPosition] = movedBookmark;
 
             saveBookmarks();
             renderGrid();
@@ -476,7 +460,7 @@
                     e.preventDefault();
                     e.stopPropagation();
                     const id = parseInt(btn.dataset.id);
-                    const bookmark = bookmarks.find(b => b.id === id);
+                    const bookmark = bookmarks.find(b => b && b.id === id);
                     openModal(bookmark);
                 });
             });
@@ -486,7 +470,11 @@
                     e.preventDefault();
                     e.stopPropagation();
                     const id = parseInt(btn.dataset.id);
-                    bookmarks = bookmarks.filter(b => b.id !== id);
+                    // Set position to null instead of removing from array
+                    const index = bookmarks.findIndex(b => b && b.id === id);
+                    if (index !== -1) {
+                        bookmarks[index] = null;
+                    }
                     saveBookmarks();
                     renderGrid();
                 });
@@ -617,10 +605,24 @@
             };
 
             if (editId) {
-                const index = bookmarks.findIndex(b => b.id === editId);
-                bookmarks[index] = bookmarkData;
+                // Find and update existing bookmark
+                const index = bookmarks.findIndex(b => b && b.id === editId);
+                if (index !== -1) {
+                    bookmarks[index] = bookmarkData;
+                }
             } else {
-                bookmarks.push(bookmarkData);
+                // Add new bookmark to first available position
+                let inserted = false;
+                for (let i = 0; i < bookmarks.length; i++) {
+                    if (!bookmarks[i]) {
+                        bookmarks[i] = bookmarkData;
+                        inserted = true;
+                        break;
+                    }
+                }
+                if (!inserted) {
+                    bookmarks.push(bookmarkData);
+                }
             }
 
             saveBookmarks();
