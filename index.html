@@ -222,47 +222,72 @@
             draggedIndex = index;
             e.target.closest('.bookmark-tile').classList.add('dragging');
             e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', e.target.innerHTML);
         }
 
         function handleDragEnd(e) {
-            e.target.closest('.bookmark-tile').classList.remove('dragging');
+            const tile = e.target.closest('.bookmark-tile');
+            if (tile) {
+                tile.classList.remove('dragging');
+            }
             document.querySelectorAll('.drop-zone').forEach(zone => {
                 zone.classList.remove('drag-over');
             });
+            draggedIndex = null;
         }
 
         function handleDragOver(e) {
-            e.preventDefault();
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
             e.dataTransfer.dropEffect = 'move';
+            return false;
         }
 
         function handleDragEnter(e) {
-            const dropZone = e.target.closest('.drop-zone');
-            if (dropZone) {
+            const dropZone = e.currentTarget;
+            if (dropZone && dropZone.classList.contains('drop-zone')) {
                 dropZone.classList.add('drag-over');
             }
         }
 
         function handleDragLeave(e) {
-            const dropZone = e.target.closest('.drop-zone');
-            if (dropZone && !dropZone.contains(e.relatedTarget)) {
+            const dropZone = e.currentTarget;
+            if (dropZone && dropZone.classList.contains('drop-zone')) {
                 dropZone.classList.remove('drag-over');
             }
         }
 
         function handleDrop(e, dropIndex) {
-            e.preventDefault();
-            e.target.closest('.drop-zone').classList.remove('drag-over');
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
 
-            if (draggedIndex === null || draggedIndex === dropIndex) return;
+            const dropZone = e.currentTarget;
+            if (dropZone) {
+                dropZone.classList.remove('drag-over');
+            }
 
-            // Reorder bookmarks array
-            const [movedBookmark] = bookmarks.splice(draggedIndex, 1);
-            bookmarks.splice(dropIndex, 0, movedBookmark);
+            if (draggedIndex === null || draggedIndex === dropIndex) {
+                return false;
+            }
 
-            draggedIndex = null;
-            saveBookmarks();
-            renderGrid();
+            // Only proceed if both indices are valid bookmark positions
+            if (draggedIndex >= 0 && draggedIndex < bookmarks.length && 
+                dropIndex >= 0 && dropIndex < bookmarks.length) {
+                
+                // Reorder bookmarks array
+                const [movedBookmark] = bookmarks.splice(draggedIndex, 1);
+                bookmarks.splice(dropIndex, 0, movedBookmark);
+
+                saveBookmarks();
+                renderGrid();
+            }
+
+            return false;
         }
 
         function renderGrid() {
@@ -338,7 +363,7 @@
                         </div>
                     `;
 
-                    // Add drag event listeners
+                    // Add drag event listeners to the tile element
                     const tileElement = tile.querySelector('.bookmark-tile');
                     tileElement.addEventListener('dragstart', (e) => handleDragStart(e, currentIndex));
                     tileElement.addEventListener('dragend', handleDragEnd);
@@ -348,6 +373,8 @@
                             window.open(bookmark.url, '_blank');
                         }
                     });
+                    
+                    // Add drop zone listeners to the parent container
                     tile.addEventListener('dragover', handleDragOver);
                     tile.addEventListener('dragenter', handleDragEnter);
                     tile.addEventListener('dragleave', handleDragLeave);
