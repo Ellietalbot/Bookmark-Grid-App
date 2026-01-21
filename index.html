@@ -224,14 +224,15 @@ function getFaviconUrl(url) {
             return 'https://ssl.gstatic.com/ui/v1/icons/mail/rfr/gmail.ico';
         }
         if (hostname.endsWith('calendar.google.com')) {
-            return 'https://calendar.google.com/googlecalendar/images/favicons_2020q4/calendar_48.ico';
+    return 'https://calendar.google.com/favicon.ico';
         }
         if (hostname.endsWith('youtube.com')) {
             return 'https://www.youtube.com/favicon.ico';
         }
-        if (hostname === 'byui.instructure.com') {
+        if (hostname.endsWith('byui.instructure.com')) {
             return 'https://www.byui.edu/prebuilt/stylenav/favicon.ico';
         }
+
 
 
         return `https://www.google.com/s2/favicons?domain=${hostname}&sz=128`;
