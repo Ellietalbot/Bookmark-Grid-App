@@ -290,6 +290,42 @@
             return false;
         }
 
+        function handleDropOnEmpty(e, emptyIndex) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+
+            const dropZone = e.currentTarget;
+            if (dropZone) {
+                dropZone.classList.remove('drag-over');
+            }
+
+            if (draggedIndex === null) {
+                return false;
+            }
+
+            // Move bookmark from draggedIndex to emptyIndex
+            if (draggedIndex >= 0 && draggedIndex < bookmarks.length) {
+                const [movedBookmark] = bookmarks.splice(draggedIndex, 1);
+                
+                // Insert at the empty position
+                // If emptyIndex is beyond current bookmarks length, push to end
+                if (emptyIndex >= bookmarks.length) {
+                    bookmarks.push(movedBookmark);
+                } else {
+                    bookmarks.splice(emptyIndex, 0, movedBookmark);
+                }
+
+                saveBookmarks();
+                renderGrid();
+            }
+
+            return false;
+        }
+
         function renderGrid() {
             const grid = document.getElementById('bookmarkGrid');
             grid.innerHTML = '';
@@ -382,6 +418,8 @@
 
                     bookmarkIndex++;
                 } else {
+                    const emptyIndex = bookmarkIndex;
+                    
                     tile.innerHTML = `
                         <button class="add-btn ghost-tile flex items-center justify-center">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" opacity="0.5">
@@ -390,6 +428,13 @@
                             </svg>
                         </button>
                     `;
+                    
+                    // Add drop zone listeners to empty tiles
+                    tile.addEventListener('dragover', handleDragOver);
+                    tile.addEventListener('dragenter', handleDragEnter);
+                    tile.addEventListener('dragleave', handleDragLeave);
+                    tile.addEventListener('drop', (e) => handleDropOnEmpty(e, emptyIndex));
+                    
                     bookmarkIndex++;
                 }
 
