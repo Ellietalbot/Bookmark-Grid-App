@@ -229,6 +229,10 @@ function getFaviconUrl(url) {
         if (hostname.endsWith('youtube.com')) {
             return 'https://www.youtube.com/favicon.ico';
         }
+        if (hostname === 'byui.instructure.com') {
+    return 'https://www.byui.edu/prebuilt/stylenav/favicon.ico';
+}
+
 
         return `https://www.google.com/s2/favicons?domain=${hostname}&sz=128`;
     } catch {
