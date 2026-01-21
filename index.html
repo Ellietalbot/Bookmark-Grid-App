@@ -22,10 +22,18 @@
             height: 100px;
             background: white;
             border-radius: 16px;
+            cursor: grab;
+        }
+        .bookmark-tile:active {
+            cursor: grabbing;
         }
         .bookmark-tile:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        }
+        .bookmark-tile.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
         }
         .ghost-tile {
             opacity: 0.3;
@@ -78,6 +86,19 @@
         }
         .search-icon {
             color: #9aa0a6;
+        }
+        .drop-zone {
+            position: relative;
+        }
+        .drop-zone.drag-over::before {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border: 3px dashed #667eea;
+            border-radius: 16px;
+            background: rgba(102, 126, 234, 0.1);
+            pointer-events: none;
+            z-index: 1;
         }
     </style>
 </head>
@@ -165,10 +186,11 @@
         let selectedColor = 'bg-blue-500';
         let selectedDisplayStyle = 'favicon';
         let currentOgImage = null;
+        let draggedIndex = null;
         const tilesPerRow = 10;
         const totalTiles = 70;
-        const searchWidgetRow = 3; // Fourth row (0-indexed)
-        const searchWidgetStartCol = 3; // Start at column 3 (after 3 tiles)
+        const searchWidgetRow = 3;
+        const searchWidgetStartCol = 3;
 
         function saveBookmarks() {
             localStorage.setItem('bookmarks', JSON.stringify(bookmarks));
@@ -196,6 +218,53 @@
             }
         }
 
+        function handleDragStart(e, index) {
+            draggedIndex = index;
+            e.target.closest('.bookmark-tile').classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleDragEnd(e) {
+            e.target.closest('.bookmark-tile').classList.remove('dragging');
+            document.querySelectorAll('.drop-zone').forEach(zone => {
+                zone.classList.remove('drag-over');
+            });
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        }
+
+        function handleDragEnter(e) {
+            const dropZone = e.target.closest('.drop-zone');
+            if (dropZone) {
+                dropZone.classList.add('drag-over');
+            }
+        }
+
+        function handleDragLeave(e) {
+            const dropZone = e.target.closest('.drop-zone');
+            if (dropZone && !dropZone.contains(e.relatedTarget)) {
+                dropZone.classList.remove('drag-over');
+            }
+        }
+
+        function handleDrop(e, dropIndex) {
+            e.preventDefault();
+            e.target.closest('.drop-zone').classList.remove('drag-over');
+
+            if (draggedIndex === null || draggedIndex === dropIndex) return;
+
+            // Reorder bookmarks array
+            const [movedBookmark] = bookmarks.splice(draggedIndex, 1);
+            bookmarks.splice(dropIndex, 0, movedBookmark);
+
+            draggedIndex = null;
+            saveBookmarks();
+            renderGrid();
+        }
+
         function renderGrid() {
             const grid = document.getElementById('bookmarkGrid');
             grid.innerHTML = '';
@@ -206,7 +275,7 @@
                 const currentRow = Math.floor(i / tilesPerRow);
                 const currentCol = i % tilesPerRow;
 
-                // Insert search widget in row 3, columns 3-6 (spanning 4 columns)
+                // Insert search widget
                 if (currentRow === searchWidgetRow && currentCol === searchWidgetStartCol) {
                     const searchWidget = document.createElement('div');
                     searchWidget.className = 'search-widget';
@@ -226,15 +295,13 @@
                         </form>
                     `;
                     grid.appendChild(searchWidget);
-                    
-                    // Skip the next 3 positions in this row (columns 4, 5, 6)
                     i += 3;
                     continue;
                 }
 
                 const bookmark = bookmarks[bookmarkIndex];
                 const tile = document.createElement('div');
-                tile.className = 'relative group';
+                tile.className = 'relative group drop-zone';
 
                 if (bookmark) {
                     const displayStyle = bookmark.displayStyle || 'favicon';
@@ -242,12 +309,16 @@
                         ? `background-image: url(${bookmark.ogImage}); background-size: cover; background-position: center;`
                         : '';
                     
+                    const currentIndex = bookmarkIndex;
+                    
                     tile.innerHTML = `
                         <a href="${bookmark.url}" target="_blank" rel="noopener noreferrer" 
+                           draggable="true"
                            class="bookmark-tile flex flex-col items-center justify-center relative overflow-hidden shadow-lg block p-2"
                            style="${bgStyle}"
-                           title="${bookmark.title}">
-                            ${displayStyle === 'favicon' ? `<img src="${getFaviconUrl(bookmark.url)}" alt="${bookmark.title}" class="w-16 h-16">` : ''}
+                           title="${bookmark.title}"
+                           data-index="${currentIndex}">
+                            ${displayStyle === 'favicon' ? `<img src="${getFaviconUrl(bookmark.url)}" alt="${bookmark.title}" class="w-16 h-16 pointer-events-none">` : ''}
                             <div class="edit-buttons absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center">
                                 <div class="flex gap-2">
                                     <button class="edit-btn bg-white text-gray-800 rounded-full p-2 hover:bg-gray-100 shadow-lg" data-id="${bookmark.id}">
@@ -266,6 +337,16 @@
                             </div>
                         </a>
                     `;
+
+                    // Add drag event listeners
+                    const tileElement = tile.querySelector('.bookmark-tile');
+                    tileElement.addEventListener('dragstart', (e) => handleDragStart(e, currentIndex));
+                    tileElement.addEventListener('dragend', handleDragEnd);
+                    tile.addEventListener('dragover', handleDragOver);
+                    tile.addEventListener('dragenter', handleDragEnter);
+                    tile.addEventListener('dragleave', handleDragLeave);
+                    tile.addEventListener('drop', (e) => handleDrop(e, currentIndex));
+
                     bookmarkIndex++;
                 } else {
                     tile.innerHTML = `
@@ -290,6 +371,7 @@
             document.querySelectorAll('.edit-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     e.preventDefault();
+                    e.stopPropagation();
                     const id = parseInt(btn.dataset.id);
                     const bookmark = bookmarks.find(b => b.id === id);
                     openModal(bookmark);
@@ -299,6 +381,7 @@
             document.querySelectorAll('.delete-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     e.preventDefault();
+                    e.stopPropagation();
                     const id = parseInt(btn.dataset.id);
                     bookmarks = bookmarks.filter(b => b.id !== id);
                     saveBookmarks();
@@ -484,7 +567,7 @@
                 if (selectedDisplayStyle === 'og-image') {
                     handleUrlChange();
                 }
-            }, 1000); // Debounce for 1 second
+            }, 1000);
         });
 
         // Initial render
