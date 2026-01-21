@@ -126,8 +126,8 @@
             
             <div class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium mb-1">Title</label>
-                    <input type="text" id="bookmarkTitle" class="w-full border rounded px-3 py-2" placeholder="My Bookmark">
+                    <label class="block text-sm font-medium mb-1">Title (optional)</label>
+                    <input type="text" id="bookmarkTitle" class="w-full border rounded px-3 py-2" placeholder="Leave blank to use domain name">
                 </div>
 
                 <div>
@@ -225,12 +225,17 @@
 
         function handleDragStart(e, index) {
             draggedIndex = index;
-            e.target.closest('.bookmark-tile').classList.add('dragging');
+            console.log('Drag started from index:', draggedIndex);
+            const tile = e.target.closest('.bookmark-tile');
+            if (tile) {
+                tile.classList.add('dragging');
+            }
             e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/html', e.target.innerHTML);
+            e.dataTransfer.setData('text/html', '');
         }
 
         function handleDragEnd(e) {
+            console.log('Drag ended');
             const tile = e.target.closest('.bookmark-tile');
             if (tile) {
                 tile.classList.remove('dragging');
@@ -238,7 +243,6 @@
             document.querySelectorAll('.drop-zone').forEach(zone => {
                 zone.classList.remove('drag-over');
             });
-            draggedIndex = null;
         }
 
         function handleDragOver(e) {
@@ -264,6 +268,7 @@
         }
 
         function handleDrop(e, dropIndex) {
+            console.log('Drop on bookmark at index:', dropIndex, 'from index:', draggedIndex);
             if (e.stopPropagation) {
                 e.stopPropagation();
             }
@@ -277,6 +282,8 @@
             }
 
             if (draggedIndex === null || draggedIndex === dropIndex) {
+                console.log('Invalid drop - same position or no drag index');
+                draggedIndex = null;
                 return false;
             }
 
@@ -285,11 +292,13 @@
                 bookmarks.push(null);
             }
 
+            console.log('Swapping positions:', draggedIndex, '<->', dropIndex);
             // Swap positions (even if one is null)
             const temp = bookmarks[draggedIndex];
             bookmarks[draggedIndex] = bookmarks[dropIndex];
             bookmarks[dropIndex] = temp;
 
+            draggedIndex = null;
             saveBookmarks();
             renderGrid();
 
@@ -297,6 +306,7 @@
         }
 
         function handleDropOnEmpty(e, targetPosition) {
+            console.log('Drop on empty at index:', targetPosition, 'from index:', draggedIndex);
             if (e.stopPropagation) {
                 e.stopPropagation();
             }
@@ -310,6 +320,8 @@
             }
 
             if (draggedIndex === null || draggedIndex === targetPosition) {
+                console.log('Invalid drop - same position or no drag index');
+                draggedIndex = null;
                 return false;
             }
 
@@ -318,14 +330,18 @@
                 bookmarks.push(null);
             }
             
+            console.log('Moving bookmark from', draggedIndex, 'to', targetPosition);
             // Move bookmark to target position (leave null at old position)
             const movedBookmark = bookmarks[draggedIndex];
             if (movedBookmark) {
                 bookmarks[draggedIndex] = null;
                 bookmarks[targetPosition] = movedBookmark;
 
+                draggedIndex = null;
                 saveBookmarks();
                 renderGrid();
+            } else {
+                console.log('No bookmark at dragged index');
             }
 
             return false;
@@ -335,25 +351,8 @@
             const grid = document.getElementById('bookmarkGrid');
             grid.innerHTML = '';
 
-            // Create a map of actual grid positions to bookmark indices
             let gridPosition = 0;
-            const positionMap = [];
-
-            for (let i = 0; i < totalTiles; i++) {
-                const currentRow = Math.floor(i / tilesPerRow);
-                const currentCol = i % tilesPerRow;
-
-                // Skip search widget positions
-                if (currentRow === searchWidgetRow && currentCol === searchWidgetStartCol) {
-                    i += 3;
-                    continue;
-                }
-                
-                positionMap.push(gridPosition);
-                gridPosition++;
-            }
-
-            gridPosition = 0;
+            let bookmarkPosition = 0;
 
             for (let i = 0; i < totalTiles; i++) {
                 const currentRow = Math.floor(i / tilesPerRow);
@@ -383,10 +382,10 @@
                     continue;
                 }
 
-                const bookmark = bookmarks[gridPosition];
+                const bookmark = bookmarks[bookmarkPosition];
                 const tile = document.createElement('div');
                 tile.className = 'relative group drop-zone';
-                tile.dataset.gridPosition = gridPosition;
+                const currentBookmarkPosition = bookmarkPosition;
 
                 if (bookmark) {
                     const displayStyle = bookmark.displayStyle || 'favicon';
@@ -422,7 +421,7 @@
 
                     // Add drag event listeners to the tile element
                     const tileElement = tile.querySelector('.bookmark-tile');
-                    tileElement.addEventListener('dragstart', (e) => handleDragStart(e, gridPosition));
+                    tileElement.addEventListener('dragstart', (e) => handleDragStart(e, currentBookmarkPosition));
                     tileElement.addEventListener('dragend', handleDragEnd);
                     tileElement.addEventListener('click', (e) => {
                         // Only navigate if not clicking on buttons
@@ -435,7 +434,7 @@
                     tile.addEventListener('dragover', handleDragOver);
                     tile.addEventListener('dragenter', handleDragEnter);
                     tile.addEventListener('dragleave', handleDragLeave);
-                    tile.addEventListener('drop', (e) => handleDrop(e, gridPosition));
+                    tile.addEventListener('drop', (e) => handleDrop(e, currentBookmarkPosition));
                 } else {
                     tile.innerHTML = `
                         <button class="add-btn ghost-tile flex items-center justify-center">
@@ -450,11 +449,11 @@
                     tile.addEventListener('dragover', handleDragOver);
                     tile.addEventListener('dragenter', handleDragEnter);
                     tile.addEventListener('dragleave', handleDragLeave);
-                    tile.addEventListener('drop', (e) => handleDropOnEmpty(e, gridPosition));
+                    tile.addEventListener('drop', (e) => handleDropOnEmpty(e, currentBookmarkPosition));
                 }
 
                 grid.appendChild(tile);
-                gridPosition++;
+                bookmarkPosition++;
             }
 
             // Add event listeners
@@ -593,13 +592,26 @@
         }
 
         function saveBookmark() {
-            const title = document.getElementById('bookmarkTitle').value;
-            let url = document.getElementById('bookmarkUrl').value;
+            let title = document.getElementById('bookmarkTitle').value.trim();
+            let url = document.getElementById('bookmarkUrl').value.trim();
 
-            if (!title || !url) return;
+            if (!url) {
+                alert('URL is required');
+                return;
+            }
 
             if (!url.startsWith('http://') && !url.startsWith('https://')) {
                 url = 'https://' + url;
+            }
+
+            // If no title provided, use the domain name
+            if (!title) {
+                try {
+                    const domain = new URL(url).hostname;
+                    title = domain.replace('www.', '');
+                } catch (e) {
+                    title = 'Bookmark';
+                }
             }
 
             const bookmarkData = {
