@@ -312,12 +312,12 @@
                     const currentIndex = bookmarkIndex;
                     
                     tile.innerHTML = `
-                        <a href="${bookmark.url}" target="_blank" rel="noopener noreferrer" 
-                           draggable="true"
-                           class="bookmark-tile flex flex-col items-center justify-center relative overflow-hidden shadow-lg block p-2"
+                        <div draggable="true"
+                           class="bookmark-tile flex flex-col items-center justify-center relative overflow-hidden shadow-lg p-2"
                            style="${bgStyle}"
                            title="${bookmark.title}"
-                           data-index="${currentIndex}">
+                           data-index="${currentIndex}"
+                           data-url="${bookmark.url}">
                             ${displayStyle === 'favicon' ? `<img src="${getFaviconUrl(bookmark.url)}" alt="${bookmark.title}" class="w-16 h-16 pointer-events-none">` : ''}
                             <div class="edit-buttons absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center">
                                 <div class="flex gap-2">
@@ -335,13 +335,19 @@
                                     </button>
                                 </div>
                             </div>
-                        </a>
+                        </div>
                     `;
 
                     // Add drag event listeners
                     const tileElement = tile.querySelector('.bookmark-tile');
                     tileElement.addEventListener('dragstart', (e) => handleDragStart(e, currentIndex));
                     tileElement.addEventListener('dragend', handleDragEnd);
+                    tileElement.addEventListener('click', (e) => {
+                        // Only navigate if not clicking on buttons
+                        if (!e.target.closest('button')) {
+                            window.open(bookmark.url, '_blank');
+                        }
+                    });
                     tile.addEventListener('dragover', handleDragOver);
                     tile.addEventListener('dragenter', handleDragEnter);
                     tile.addEventListener('dragleave', handleDragLeave);
